@@ -1,5 +1,8 @@
 import { WebSocketServer, WebSocket } from "ws";
 
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
 const wss = new WebSocketServer({ port: 8080 });
 
 let rooms: Map<string, Set<WebSocket>> = new Map();
