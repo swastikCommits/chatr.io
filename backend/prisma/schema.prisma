@@ -15,7 +15,6 @@ datasource db {
 
 model User{
   id        String   @id @default(cuid())
-  username  String   @unique
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
@@ -26,7 +25,7 @@ model User{
 
 model Room {
   id        String    @id @default(cuid())
-  name      String    @unique // The roomId the user provides, e.g., "tech-talk"
+  name      String    @unique 
   createdAt DateTime  @default(now())
   users     User[]   
 
