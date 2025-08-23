@@ -6,7 +6,7 @@ import cors from "cors";
 import { loginSchema, signupSchema } from "../../types";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { authenticateToken } from "./middleware";
+import { authenticateToken } from "../middleware/middleware";
 
 const prisma = new PrismaClient();
 
@@ -176,7 +176,7 @@ userRouter.post('/login', async (req, res) => {
 });
 
 
-userRouter.post('/api/auth/logout', (req, res) => {
+userRouter.post('/logout', (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

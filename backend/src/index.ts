@@ -1,68 +1,18 @@
-import { WebSocketServer, WebSocket } from "ws";
+import dotenv from "dotenv";
+dotenv.config();
 
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import express from "express";
+import cors from "cors";
+import userRouter from "./http/routes/user";
 
-const wss = new WebSocketServer({ port: 8080 });
+const app = express();
 
-let rooms: Map<string, Set<WebSocket>> = new Map();
-let clientRooms: Map<WebSocket, string> = new Map();
+app.use(express.json());
+app.use(cors());
 
-wss.on("connection", (ws) => {
-    ws.on("message", (message) => {
-        const data = JSON.parse(message.toString());
-        
-        if(data.type === "join"){
-            let room = rooms.get(data.roomId);
-            if(!room){
-                room = new Set();
-                rooms.set(data.roomId, room);
-            }
-            room.add(ws);
-            clientRooms.set(ws, data.roomId);
+app.use("/api/auth", userRouter);
+// app.use("/ws/server", wsServer);
 
-            console.log(`Client joined room: ${data.roomId}`);
-
-            ws.send(JSON.stringify({
-                type: "join_success",
-                message: `You are now in room ${data.roomId}`,
-                roomId: data.roomId
-            }));
-            room.forEach(client => {
-                if (client !== ws && client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({
-                        type: "user_joined",
-                        message: `A new user has joined the room.`,
-                        userCount: room.size
-                    }));
-                }
-            });
-        }
-
-
-
-        if (data.type === "chat") {
-            const roomId = clientRooms.get(ws);
-            if (!roomId) {
-                ws.send(JSON.stringify({type: "error", message: "You are not in a room!"}));
-                return;
-            }
-
-            const room = rooms.get(roomId);
-            if (!room) {
-                ws.send(JSON.stringify({type: "error", message: "Room does not exist!"}));
-                return;
-            }
-
-            room.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({
-                        type: "chat_message",
-                        message: data.message,
-                        sender: client === ws ? "me" : "other"
-                    }));
-                }
-            });
-        }
-    });
+app.listen(3000, () => {
+    console.log("Server is running on port 3000");
 });
