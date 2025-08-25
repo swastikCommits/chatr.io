@@ -27,15 +27,15 @@ model Room {
   id        String    @id @default(cuid())
   name      String    @unique 
   createdAt DateTime  @default(now())
-  users     User[]   
 
+  users     User[]   
   messages  Message[]
   
 }
 
 model Message {
   id        String   @id @default(cuid())
-  content   String
+  message   String
   createdAt DateTime @default(now())
 
   roomId    String
