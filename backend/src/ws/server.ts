@@ -15,7 +15,8 @@ function verifyUser(token: string): UserJWTPayload {
     return decoded;
 }
 
-const wss = new WebSocketServer({ port: 8080 });
+export const port = Number(process.env.WS_PORT) || 8081;
+const wss = new WebSocketServer({ port });
 
 let rooms: Map<string, Set<AuthenticatedWebSocket>> = new Map();
 
@@ -141,4 +142,4 @@ wss.on("connection", (ws: AuthenticatedWebSocket) => {
     });
 });
 
-console.log("WebSocket server started on port 8080");
+console.log(`WebSocket server started on port ${port}`);

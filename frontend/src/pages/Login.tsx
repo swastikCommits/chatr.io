@@ -38,16 +38,25 @@ const Login = () => {
     setError(null);
 
     try {
-      // TODO: Implement next-auth login logic here
-      console.log('Login attempt:', data.email);
-      
-      // Placeholder - simulate login
-      setTimeout(() => {
-        setIsLoading(false);
-        navigate('/');
-      }, 1000);
+      const response = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
+
+      // On successful login, redirect to the chat/home page
+      navigate('/');
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };

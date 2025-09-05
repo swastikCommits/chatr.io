@@ -4,97 +4,90 @@ import { useParams } from 'react-router-dom';
 import { ChatSidebarAnimated } from '@/components/ChatSidebarAnimated';
 import { ChatMessage } from '@/components/ChatMessage';
 import { ChatInput } from '@/components/ChatInput';
-import { TypingIndicator } from '@/components/TypingIndicator';
 
+// Define the structure of a message
 interface Message {
   id: string;
-  text: string;
-  sender: string;
-  timestamp: string;
-  isOwn: boolean;
-  avatar?: string;
+  content: string;
+  author: {
+    id: string;
+    email: string;
+  };
+  roomId: string;
+  createdAt: string;
 }
 
-const mockMessages: Message[] = [
-  {
-    id: '1',
-    text: 'Hey everyone! How\'s the project coming along?',
-    sender: 'Alex Johnson',
-    timestamp: '10:30 AM',
-    isOwn: false,
-  },
-  {
-    id: '2',
-    text: 'Great! I just finished the authentication module. Working on the dashboard now.',
-    sender: 'You',
-    timestamp: '10:32 AM',
-    isOwn: true,
-  },
-  {
-    id: '3',
-    text: 'Awesome work! The API endpoints are also ready. We should be able to integrate everything by tomorrow.',
-    sender: 'Sarah Chen',
-    timestamp: '10:35 AM',
-    isOwn: false,
-  },
-  {
-    id: '4',
-    text: 'Perfect timing! I\'ll prepare the deployment pipeline today.',
-    sender: 'You',
-    timestamp: '10:36 AM',
-    isOwn: true,
-  },
-];
+// Define the structure for a message received from the server
+interface ServerMessage {
+  type: "SERVER:NEW_MESSAGE";
+  payload: {
+    message: Message;
+  };
+}
 
 const Room = () => {
   const { roomId } = useParams<{ roomId: string }>();
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
-  const [isTyping, setIsTyping] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const ws = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Hardcoded current user ID for demonstration
+  // In a real app, this would come from an authentication context
+  const currentUserId = "your_current_user_id"; 
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Effect to establish WebSocket connection
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    ws.current = new WebSocket('ws://localhost:8081');
 
-  const handleSendMessage = (text: string) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text,
-      sender: 'You',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isOwn: true,
+    ws.current.onopen = () => {
+      console.log("WebSocket connected");
+      // Join the room upon connection
+      ws.current?.send(JSON.stringify({
+        type: "join",
+        payload: {
+          roomId: roomId
+        }
+      }));
     };
 
-    setMessages((prev) => [...prev, newMessage]);
+    ws.current.onmessage = (event) => {
+      const received = JSON.parse(event.data) as ServerMessage;
 
-    // Simulate someone typing
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      // Simulate response
-      const responses = [
-        'That sounds great!',
-        'I agree with that approach.',
-        'Let me know if you need any help!',
-        'Good point, I\'ll look into that.',
-        'Thanks for the update!'
-      ];
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      
-      const responseMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: randomResponse,
-        sender: 'Alex Johnson',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isOwn: false,
-      };
-      
-      setMessages((prev) => [...prev, responseMessage]);
-    }, 2000);
+      if (received.type === "SERVER:NEW_MESSAGE") {
+        setMessages((prevMessages) => [...prevMessages, received.payload.message]);
+      }
+    };
+
+    ws.current.onclose = () => {
+      console.log("WebSocket disconnected");
+    };
+
+    ws.current.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    // Cleanup on component unmount
+    return () => {
+      ws.current?.close();
+    };
+  }, [roomId]);
+
+  // Effect to scroll to the latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Function to handle sending a message
+  const handleSendMessage = (content: string) => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({
+        type: "chat",
+        payload: {
+          roomId: roomId,
+          content: content,
+        },
+      }));
+    }
   };
 
   return (
@@ -111,14 +104,20 @@ const Room = () => {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto chat-scroll bg-background/50">
-          <div className="space-y-1 p-4">
-            {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} />
-            ))}
-            {isTyping && <TypingIndicator />}
-            <div ref={messagesEndRef} />
-          </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map((msg) => (
+            <ChatMessage
+              key={msg.id}
+              message={{
+                id: msg.id,
+                text: msg.content,
+                sender: msg.author.email,
+                timestamp: new Date(msg.createdAt).toLocaleTimeString(),
+                isOwn: msg.author.id === currentUserId,
+              }}
+            />
+          ))}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Chat Input */}

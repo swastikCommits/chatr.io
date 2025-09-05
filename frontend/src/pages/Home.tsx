@@ -42,21 +42,21 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="flex-1 bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="flex justify-center">
+          {/* <div className="flex justify-center">
             <div className="h-12 w-12 bg-primary rounded-lg flex items-center justify-center">
               <MessageCircle className="h-6 w-6 text-primary-foreground" />
             </div>
-          </div>
+          </div> */}
           <h1 className="text-3xl font-bold text-foreground">Chat Rooms</h1>
           <p className="text-muted-foreground">Create a room and start chatting with your team</p>
         </div>
 
         {/* Features */}
-        <div className="grid grid-cols-3 gap-4">
+        {/* <div className="grid grid-cols-3 gap-4">
           <div className="text-center space-y-2">
             <div className="h-10 w-10 bg-secondary rounded-lg flex items-center justify-center mx-auto">
               <Users className="h-5 w-5 text-secondary-foreground" />
@@ -75,7 +75,7 @@ const Home = () => {
             </div>
             <p className="text-xs text-muted-foreground">Instant</p>
           </div>
-        </div>
+        </div> */}
 
         {/* Room Actions */}
         <Tabs defaultValue="create" className="w-full">

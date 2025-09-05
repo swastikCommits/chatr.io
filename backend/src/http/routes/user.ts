@@ -4,17 +4,15 @@ import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
 import cors from "cors";
 import { loginSchema, signupSchema } from "../../types";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../lib/prisma";
 import { z } from "zod";
 import { authenticateToken } from "../middleware/middleware";
-
-const prisma = new PrismaClient();
 
 const userRouter = express.Router();
 
 userRouter.use(cookieParser());
 userRouter.use(cors({
-  origin: "http://localhost:3000",
+  origin: "http://localhost:8080",
   credentials: true,
 }));
 userRouter.use(express.json());
@@ -44,6 +42,7 @@ userRouter.use(express.json());
 
 
 userRouter.post('/signup', async (req, res) => {
+  console.log('Signup request received:', req.body);
   try {
     const { email, password } = req.body;
 
@@ -62,6 +61,7 @@ userRouter.post('/signup', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(validPassword, 12);
+    console.log('Password hashed successfully.');
 
     const user = await prisma.user.create({
       data: {
@@ -74,6 +74,7 @@ userRouter.post('/signup', async (req, res) => {
         // createdAt: true,
       }
     });
+    console.log('User created in database:', user);
 
     if (!process.env.JWT_SECRET) {
       console.error('JWT_SECRET is not configured');

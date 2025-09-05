@@ -42,9 +42,19 @@
     --chat-bubble-user: 0 0% 25%;
     --chat-bubble-other: 0 0% 15%;
     --chat-input: 0 0% 8%;
-    --sidebar: 0 0% 6%;
-    --online-indicator: 120 100% 40%;
-    --offline-indicator: 0 0% 45%;
+    --sidebar-bg: 0 0% 6%;
+    --online: 120 100% 40%;
+    --offline: 0 0% 45%;
+    
+    /* Sidebar specific colors for navbar */
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 0% 85%;
+    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-accent: 0 0% 20%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 0 0% 70%;
   }
 }
 

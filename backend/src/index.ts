@@ -5,6 +5,7 @@ import express from "express";
 import cors from "cors";
 import userRouter from "./http/routes/user";
 import "./ws/server"; // Just import to start the WebSocket server/
+import { port } from "./ws/server";
 
 const app = express();
 
@@ -15,5 +16,5 @@ app.use("/api/auth", userRouter);
 
 app.listen(3000, () => {
     console.log("HTTP Server is running on port 3000");
-    console.log("WebSocket Server is running on port 8080");
+    console.log(`WebSocket Server is running on port ${port}`);
 });

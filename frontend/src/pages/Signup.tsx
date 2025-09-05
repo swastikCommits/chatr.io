@@ -52,7 +52,7 @@ const Signup = () => {
 
     try {
      
-      const response = await fetch('http://localhost:8080/api/auth/signup', {
+      const response = await fetch('http://localhost:3000/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,17 +80,6 @@ const Signup = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <Link to="/" className="inline-flex items-center justify-center">
-            <div className="h-12 w-12 bg-primary rounded-lg flex items-center justify-center">
-              <MessageCircle className="h-6 w-6 text-primary-foreground" />
-            </div>
-          </Link>
-          <h1 className="text-3xl font-bold text-foreground">Create Account</h1>
-          <p className="text-muted-foreground">Join the conversation and start chatting</p>
-        </div>
-
         {/* Signup Form */}
         <Card className="bg-card border-border">
           <CardHeader className="space-y-1">
@@ -108,7 +97,7 @@ const Signup = () => {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-card-foreground">Email</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
