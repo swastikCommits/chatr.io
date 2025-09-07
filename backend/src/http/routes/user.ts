@@ -1,6 +1,9 @@
 import express from "express";
+import { Response } from "express";
+import { UserJWTPayload, AuthenticatedRequest } from "../../types";
 import bcrypt from "bcryptjs";
 import cookieParser from "cookie-parser";
+import { generateRoom } from "../../lib/generate";
 import jwt from "jsonwebtoken";
 import cors from "cors";
 import { loginSchema, signupSchema } from "../../types";
@@ -9,80 +12,150 @@ import { z } from "zod";
 import { authenticateToken } from "../middleware/middleware";
 
 const userRouter = express.Router();
-
+userRouter.use(express.json());
 userRouter.use(cookieParser());
 userRouter.use(cors({
   origin: "http://localhost:8080",
   credentials: true,
 }));
-userRouter.use(express.json());
 
-
-// userRouter.get('/api/auth/me', authenticateToken, async (req: any, res) => {
-//   try {
-//     const user = await prisma.user.findUnique({
-//       where: { id: (req.user as any).userId },
-//       select: {
-//         id: true,
-//         email: true,
-//         createdAt: true,
-//       }
-//     });
-
-//     if (!user) {
-//       return res.status(404).json({ message: "User not found" });
-//     }
-
-//     res.json({ user });
-//   } catch (error) {
-//     console.error('Get user error:', error);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// });
-
-
-userRouter.post('/signup', async (req, res) => {
-  console.log('Signup request received:', req.body);
+userRouter.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const user = await prisma.user.findUnique({
+      where: { 
+        id: req.user!.userId 
+      },
+      select: {
+        id: true,
+        email: true,
+        createdAt: true,
+        username: true,
+      }
+    });
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const { email: validEmail, password: validPassword } = signupSchema.parse({ email, password });
+    res.json({ user });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email: validEmail }
+userRouter.get('/rooms', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    
+    const userRooms = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        rooms: {
+          select: {
+            id: true,
+            name: true,
+            createdAt: true,
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
+      }
+    });
+
+    if (!userRooms) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ rooms: userRooms.rooms });
+  } catch (error) {
+    console.error('Get user rooms error:', error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+userRouter.post('/rooms', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+  
+    const generatedRoomId = generateRoom();
+    const room = await prisma.room.create({
+      data: {
+        id: generatedRoomId,
+        name: generatedRoomId,
+        users: {
+          connect: {
+            id: userId 
+          }
+        }
+      }
+    });
+
+    res.status(201).json({ 
+      message: "Room created successfully",
+      room: {
+        id: room.id,
+        name: room.name
+      }
+    });
+  } catch (error) {
+    console.error('Create room error:', error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+userRouter.post('/signup', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { email, password, username } = req.body;
+
+    if (!email || !password || !username) { 
+      return res.status(400).json({ message: "Email, password and username are required" });
+    }
+
+    const { email: validEmail, password: validPassword, username: validUsername } = signupSchema.parse({ email, password, username });
+
+    const existingUser = await prisma.user.findFirst({
+      where: { 
+        OR: [
+          { email: validEmail },
+          { username: validUsername }
+        ]
+      }
     });
 
     if (existingUser) {
-      return res.status(400).json({ message: "Email already registered" });
+      if (existingUser.email === validEmail) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+      if (existingUser.username === validUsername) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(validPassword, 12);
-    console.log('Password hashed successfully.');
 
     const user = await prisma.user.create({
       data: {
         email: validEmail,
         password: hashedPassword,
+        username: validUsername,
       },
       select: {
         id: true,
         email: true,
-        // createdAt: true,
+        username: true,
+        createdAt: true,
       }
     });
-    console.log('User created in database:', user);
 
-    if (!process.env.JWT_SECRET) {
+    if (!process.env.JWT_SECRET) {  
       console.error('JWT_SECRET is not configured');
       return res.status(500).json({ message: "Server configuration error" });
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email }, process.env.JWT_SECRET
+      { userId: user.id, email: user.email, username: user.username }, process.env.JWT_SECRET
     );
     
     res.cookie("token", token, {
@@ -107,18 +180,12 @@ userRouter.post('/signup', async (req, res) => {
       });
     }
 
-    if (error instanceof Error) {
-      if (error.message.includes("Email already registered")) {
-        return res.status(400).json({ message: "Email already registered" });
-      }
-    }
-
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
 
-userRouter.post('/login', async (req, res) => {
+userRouter.get('/login', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -144,7 +211,7 @@ userRouter.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email }, process.env.JWT_SECRET
+      { userId: user.id, email: user.email, username: user.username }, process.env.JWT_SECRET
     );
 
     res.cookie("token", token, {
@@ -159,6 +226,7 @@ userRouter.post('/login', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
         createdAt: user.createdAt
       }
     });
@@ -177,7 +245,7 @@ userRouter.post('/login', async (req, res) => {
 });
 
 
-userRouter.post('/logout', (req, res) => {
+userRouter.post('/logout', (req, res: Response) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
