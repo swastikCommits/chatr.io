@@ -2,19 +2,19 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
-import cors from "cors";
 import userRouter from "./http/routes/user";
-import "./ws/server"; // Just import to start the WebSocket server/
-import { port } from "./ws/server";
+import "./ws/server"; 
 
 const app = express();
 
 app.use(express.json());
-app.use(cors());
 
 app.use("/api/auth", userRouter);
 
 app.listen(3000, () => {
     console.log("HTTP Server is running on port 3000");
-    console.log(`WebSocket Server is running on port ${port}`);
 });
+
+// http://localhost: 8080 -> Frontend
+// http://localhost: 3000 -> Backend
+// http://localhost: 8081 -> WebSocket
