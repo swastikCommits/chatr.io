@@ -42,6 +42,29 @@ userRouter.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: 
   }
 });
 
+userRouter.get('/check-username', async (req: Request, res: Response) => {
+  try {
+    const { username } = req.query;
+
+    if (!username || typeof username !== 'string') {
+      return res.status(400).json({ message: "Username is required" });
+    }
+
+    if (username.length < 6) {
+      return res.json({ available: false, message: "Username must be at least 6 characters" });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { username },
+    });
+
+    res.json({ available: !existingUser });
+  } catch (error) {
+    console.error('Check username error:', error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 userRouter.get('/rooms', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
