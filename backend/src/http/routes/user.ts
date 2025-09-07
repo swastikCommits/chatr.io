@@ -1,12 +1,10 @@
-import express from "express";
-import { Response } from "express";
-import { UserJWTPayload, AuthenticatedRequest } from "../../types";
+import express, { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import cookieParser from "cookie-parser";
 import { generateRoom } from "../../lib/generate";
 import jwt from "jsonwebtoken";
 import cors from "cors";
-import { loginSchema, signupSchema } from "../../types";
+import { loginSchema, signupSchema, AuthenticatedRequest } from "../../types";
 import prisma from "../../lib/prisma";
 import { z } from "zod";
 import { authenticateToken } from "../middleware/middleware";
@@ -105,7 +103,7 @@ userRouter.post('/rooms', authenticateToken, async (req: AuthenticatedRequest, r
   }
 });
 
-userRouter.post('/signup', async (req: AuthenticatedRequest, res: Response) => {
+userRouter.post('/signup', async (req, res: Response) => {
   try {
     const { email, password, username } = req.body;
 
@@ -185,7 +183,7 @@ userRouter.post('/signup', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 
-userRouter.get('/login', async (req: AuthenticatedRequest, res: Response) => {
+userRouter.post('/login', async (req, res: Response) => {
   try {
     const { email, password } = req.body;
 
