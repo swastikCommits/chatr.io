@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
+import { UserJWTPayload, AuthenticatedRequest } from "../../types";
 
-export const authenticateToken = (req: any, res: any, next: any) => {
+export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const token = req.cookies.token;
   
     if (!token) {
@@ -9,8 +10,7 @@ export const authenticateToken = (req: any, res: any, next: any) => {
     }
   
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
-    //   console.log(decoded);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as UserJWTPayload;
       req.user = decoded;
       next();
     } catch (error) {
