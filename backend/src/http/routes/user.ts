@@ -96,6 +96,19 @@ userRouter.get('/rooms', authenticateToken, async (req: AuthenticatedRequest, re
   }
 });
 
+userRouter.get('/ws-token', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) {
+      return res.status(401).json({ message: "Authentication token not found" });
+    }
+    res.json({ wsToken: token });
+  } catch (error) {
+    console.error('Generate WS token error:', error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 userRouter.post('/rooms', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
