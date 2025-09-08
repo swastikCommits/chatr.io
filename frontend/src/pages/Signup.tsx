@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 // @ts-expect-error - temporary workaround for react-hook-form import issue
 import { useForm } from 'react-hook-form';
@@ -11,40 +11,79 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { MessageCircle, Eye, EyeOff, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 
-// Schema matching your backend endpoint
 const signupSchema = z.object({
+  username: z
+    .string()
+    .min(6, 'Username must be at least 6 characters'),
   email: z
     .string()
     .email('Please enter a valid email address'),
   password: z
     .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain at least one uppercase letter, one lowercase letter, and one number'),
-  confirmPassword: z
-    .string()
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
+    .min(6, 'Password must be at least 6 characters'),
 });
 
 type SignupForm = z.infer<typeof signupSchema>;
 
+type UsernameStatus = {
+  status: 'idle' | 'checking' | 'available' | 'unavailable';
+  message?: string | null;
+};
+
 const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>({ status: 'idle' });
+  const { refetchUser } = useAuth();
   const navigate = useNavigate();
 
   const form = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
+      username: '',
       email: '',
       password: '',
-      confirmPassword: '',
     },
   });
+
+  const watchedUsername = form.watch("username");
+
+  useEffect(() => {
+    if (watchedUsername.length > 0 && watchedUsername.length < 6) {
+      setUsernameStatus({ status: 'unavailable', message: "Username must be at least 6 characters" });
+      return;
+    }
+    
+    if (watchedUsername.length === 0) {
+      setUsernameStatus({ status: 'idle' });
+      return;
+    }
+
+    const checkUsername = async () => {
+      setUsernameStatus({ status: 'checking' });
+      try {
+        const response = await fetch(`http://localhost:3000/api/auth/check-username?username=${watchedUsername}`);
+        const data = await response.json();
+        if (data.available) {
+          setUsernameStatus({ status: 'available', message: 'Username is available!' });
+        } else {
+          setUsernameStatus({ status: 'unavailable', message: data.message || 'Username is already taken.' });
+        }
+      } catch (err) {
+        setUsernameStatus({ status: 'unavailable', message: 'Could not verify username.' });
+      }
+    };
+
+    const debounceTimer = setTimeout(() => {
+      checkUsername();
+    }, 500); // 500ms debounce delay
+
+    return () => clearTimeout(debounceTimer);
+  }, [watchedUsername]);
 
   const onSubmit = async (data: SignupForm) => {
     setIsLoading(true);
@@ -58,9 +97,11 @@ const Signup = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          username: data.username,
           email: data.email,
           password: data.password,
         }),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -68,8 +109,10 @@ const Signup = () => {
         throw new Error(errorData.message || 'Signup failed');
       }
 
-      // Redirect to login or automatically sign them in
-      navigate('/login');
+      // Refetch user data to update the global auth state.
+      await refetchUser();
+      
+      navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
@@ -91,6 +134,45 @@ const Signup = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                {/* Username Field */}
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="text"
+                          placeholder="Enter your username"
+                          className="bg-input border-border"
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      {usernameStatus.status === 'checking' && (
+                        <p className="text-sm text-muted-foreground flex items-center pt-2">
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Checking availability...
+                        </p>
+                      )}
+                      {usernameStatus.status === 'available' && usernameStatus.message && (
+                        <Alert variant="destructive" className="mt-2 border-green-600">
+                          <CheckCircle className="h-4 w-4 stroke-green-600" />
+                          <AlertDescription className="text-green-600">{usernameStatus.message}</AlertDescription>
+                        </Alert>
+                      )}
+                      {usernameStatus.status === 'unavailable' && usernameStatus.message && (
+                        <Alert variant="destructive" className="mt-2">
+                          <XCircle className="h-4 w-4" />
+                          <AlertDescription>{usernameStatus.message}</AlertDescription>
+                        </Alert>
+                      )}
+                    </FormItem>
+                  )}
+                />
+
                 {/* Email Field */}
                 <FormField
                   control={form.control}
@@ -136,42 +218,6 @@ const Signup = () => {
                             onClick={() => setShowPassword(!showPassword)}
                           >
                             {showPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </Button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Confirm Password Field */}
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-card-foreground">Confirm Password</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            {...field}
-                            type={showConfirmPassword ? "text" : "password"}
-                            placeholder="Confirm your password"
-                            className="bg-input border-border pr-10"
-                            disabled={isLoading}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          >
-                            {showConfirmPassword ? (
                               <EyeOff className="h-4 w-4 text-muted-foreground" />
                             ) : (
                               <Eye className="h-4 w-4 text-muted-foreground" />

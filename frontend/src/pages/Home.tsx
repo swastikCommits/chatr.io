@@ -6,39 +6,52 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageCircle, Users, Zap, UserPlus, Plus } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { generateRoom } from '../../../backend/src/lib/generate';
+import { useEffect } from 'react';
 
 const Home = () => {
   const [roomName, setRoomName] = useState('');
   const [roomId, setRoomId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const { user } = useAuth();
   const navigate = useNavigate();
-
-  const generateRoomId = () => {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  };
 
   const handleCreateRoom = async () => {
     if (!roomName.trim()) return;
     
     setIsCreating(true);
     
-    // Simulate room creation
-    setTimeout(() => {
-      const roomId = generateRoomId();
-      navigate(`/room/${roomId}`);
-    }, 1000);
+    try {
+      const generatedRoomId = generateRoom();
+      const response = await fetch('http://localhost:3000/api/auth/rooms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create room');
+      }
+
+      const data = await response.json();
+      navigate(`/room/${data.room.id}`);
+    } catch (error) {
+      console.error('Failed to create room:', error);
+      setIsCreating(false);
+    }
   };
 
   const handleJoinRoom = async () => {
     if (!roomId.trim()) return;
     
     setIsJoining(true);
-    
-    // Simulate room joining
-    setTimeout(() => {
-      navigate(`/room/${roomId.trim()}`);
-    }, 500);
+    // Navigate to the room - the Room component will handle joining
+    navigate(`/room/${roomId.trim()}`);
   };
 
   return (
@@ -54,28 +67,6 @@ const Home = () => {
           <h1 className="text-3xl font-bold text-foreground">Chat Rooms</h1>
           <p className="text-muted-foreground">Create a room and start chatting with your team</p>
         </div>
-
-        {/* Features */}
-        {/* <div className="grid grid-cols-3 gap-4">
-          <div className="text-center space-y-2">
-            <div className="h-10 w-10 bg-secondary rounded-lg flex items-center justify-center mx-auto">
-              <Users className="h-5 w-5 text-secondary-foreground" />
-            </div>
-            <p className="text-xs text-muted-foreground">Team Chat</p>
-          </div>
-          <div className="text-center space-y-2">
-            <div className="h-10 w-10 bg-secondary rounded-lg flex items-center justify-center mx-auto">
-              <Zap className="h-5 w-5 text-secondary-foreground" />
-            </div>
-            <p className="text-xs text-muted-foreground">Real-time</p>
-          </div>
-          <div className="text-center space-y-2">
-            <div className="h-10 w-10 bg-secondary rounded-lg flex items-center justify-center mx-auto">
-              <MessageCircle className="h-5 w-5 text-secondary-foreground" />
-            </div>
-            <p className="text-xs text-muted-foreground">Instant</p>
-          </div>
-        </div> */}
 
         {/* Room Actions */}
         <Tabs defaultValue="create" className="w-full">

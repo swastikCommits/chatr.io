@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import { MessageCircle, Users, Settings, Hash } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -20,7 +20,7 @@ const mockUsers: User[] = [
   { id: '5', name: 'James Wilson', status: 'offline' },
 ];
 
-export function ChatSidebarAnimated() {
+export function ChatSidebarAnimated({ open, setOpen }: { open: boolean; setOpen: (open: boolean) => void; }) {
   const links = [
     {
       label: "General",
@@ -51,8 +51,6 @@ export function ChatSidebarAnimated() {
       ),
     },
   ];
-  
-  const [open, setOpen] = useState(false);
   
   return (
     <Sidebar open={open} setOpen={setOpen}>
@@ -133,7 +131,7 @@ export const Logo = () => {
         animate={{ opacity: 1 }}
         className="font-medium text-foreground whitespace-pre"
       >
-        Team Chat
+        Chatr.io
       </motion.span>
     </Link>
   );

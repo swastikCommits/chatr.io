@@ -1,14 +1,16 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { ChatSidebarAnimated } from '@/components/ChatSidebarAnimated';
 import { ChatMessage } from '@/components/ChatMessage';
 import { ChatInput } from '@/components/ChatInput';
+import { useAuth } from '@/context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Define the structure of a message
 interface Message {
   id: string;
-  content: string;
+  message: string; // Changed from content
   author: {
     id: string;
     email: string;
@@ -19,52 +21,86 @@ interface Message {
 
 // Define the structure for a message received from the server
 interface ServerMessage {
-  type: "SERVER:NEW_MESSAGE";
+  type: "SERVER:NEW_MESSAGE" | "room_joined" | "error";
   payload: {
-    message: Message;
+    roomId?: string;
+    message?: Message | string;
   };
 }
 
 const Room = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const ws = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Hardcoded current user ID for demonstration
-  // In a real app, this would come from an authentication context
-  const currentUserId = "your_current_user_id"; 
+  // Get current user from authentication context
+  const { user } = useAuth();
+  const currentUserId = user?.id || ''; 
 
   // Effect to establish WebSocket connection
   useEffect(() => {
-    ws.current = new WebSocket('ws://localhost:8081');
+    const connectToRoom = async () => {
+      try {
+        // Get WebSocket token from the API
+        const tokenResponse = await fetch('http://localhost:3000/api/auth/ws-token', {
+          credentials: 'include',
+        });
 
-    ws.current.onopen = () => {
-      console.log("WebSocket connected");
-      // Join the room upon connection
-      ws.current?.send(JSON.stringify({
-        type: "join",
-        payload: {
-          roomId: roomId
+        if (!tokenResponse.ok) {
+          console.error('Failed to get WebSocket token');
+          return;
         }
-      }));
-    };
 
-    ws.current.onmessage = (event) => {
-      const received = JSON.parse(event.data) as ServerMessage;
+        const { wsToken } = await tokenResponse.json();
 
-      if (received.type === "SERVER:NEW_MESSAGE") {
-        setMessages((prevMessages) => [...prevMessages, received.payload.message]);
+        // Now connect to WebSocket with the token
+        ws.current = new WebSocket('ws://localhost:8081');
+
+        ws.current.onopen = () => {
+          console.log("WebSocket connected");
+          
+          // Join the room upon connection with token
+          ws.current?.send(JSON.stringify({
+            type: "join",
+            payload: {
+              roomId: roomId,
+              token: wsToken
+            }
+          }));
+        };
+
+        ws.current.onmessage = (event) => {
+          try {
+            const received = JSON.parse(event.data) as ServerMessage;
+
+            if (received.type === "SERVER:NEW_MESSAGE" && received.payload.message) {
+              setMessages((prevMessages) => [...prevMessages, received.payload.message as Message]);
+            } else if (received.type === "room_joined") {
+              console.log("Successfully joined room:", received.payload.roomId);
+            } else if (received.type === "error") {
+              console.error("WebSocket error:", received.payload.message);
+            }
+          } catch (error) {
+            console.error('Failed to parse WebSocket message:', event.data);
+            // If it's not JSON, just ignore it (could be a connection message)
+          }
+        };
+
+        ws.current.onclose = () => {
+          console.log("WebSocket disconnected");
+        };
+
+        ws.current.onerror = (error) => {
+          console.error("WebSocket error:", error);
+        };
+      } catch (error) {
+        console.error('Failed to connect to room:', error);
       }
     };
 
-    ws.current.onclose = () => {
-      console.log("WebSocket disconnected");
-    };
-
-    ws.current.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
+    connectToRoom();
 
     // Cleanup on component unmount
     return () => {
@@ -72,9 +108,22 @@ const Room = () => {
     };
   }, [roomId]);
 
+  // Memoize processed messages to avoid recalculating timestamps and initials on every render
+  const processedMessages = useMemo(() => {
+    return messages.map((msg) => ({
+      id: msg.id,
+      text: msg.message, // Changed from msg.content
+      sender: msg.author.email,
+      timestamp: new Date(msg.createdAt).toLocaleTimeString(),
+      isOwn: msg.author.id === currentUserId,
+      initials: msg.author.email.slice(0, 2).toUpperCase(),
+    }));
+  }, [messages, currentUserId]);
+
   // Effect to scroll to the latest message
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Use instant scrolling for better performance
+    messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
   }, [messages]);
 
   // Function to handle sending a message
@@ -92,9 +141,9 @@ const Room = () => {
 
   return (
     <div className="h-screen flex bg-background w-full">
-      <ChatSidebarAnimated />
+      <ChatSidebarAnimated open={sidebarOpen} setOpen={setSidebarOpen} />
       
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col" onClick={() => { if (sidebarOpen) setSidebarOpen(false); }}>
         {/* Chat Header */}
         <div className="p-6 border-b border-border bg-card/30 backdrop-blur-sm">
           <h1 className="text-2xl font-bold text-foreground">Room Chat</h1>
@@ -105,18 +154,22 @@ const Room = () => {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={{
-                id: msg.id,
-                text: msg.content,
-                sender: msg.author.email,
-                timestamp: new Date(msg.createdAt).toLocaleTimeString(),
-                isOwn: msg.author.id === currentUserId,
-              }}
-            />
-          ))}
+          <AnimatePresence>
+            {processedMessages.map((message) => (
+              <motion.div
+                key={message.id}
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ type: "spring", damping: 20, stiffness: 150 }}
+              >
+                <ChatMessage
+                  message={message}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
           <div ref={messagesEndRef} />
         </div>
 

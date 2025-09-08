@@ -8,6 +8,7 @@ interface Message {
   timestamp: string;
   isOwn: boolean;
   avatar?: string;
+  initials?: string;
 }
 
 interface ChatMessageProps {
@@ -20,7 +21,7 @@ export const ChatMessage = ({ message }: ChatMessageProps) => {
       <Avatar className="w-8 h-8 flex-shrink-0">
         <AvatarImage src={message.avatar} />
         <AvatarFallback className="bg-secondary text-secondary-foreground text-xs">
-          {message.sender.split(' ').map(n => n[0]).join('')}
+          {message.initials || message.sender.split(' ').map(n => n[0]).join('')}
         </AvatarFallback>
       </Avatar>
       

@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { MessageCircle, Eye, EyeOff, Loader2, AlertCircle, Github, Mail } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 // Login schema
 const loginSchema = z.object({
@@ -23,6 +24,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { refetchUser } = useAuth();
   const navigate = useNavigate();
 
   const form = RHF.useForm<LoginForm>({
@@ -32,6 +34,34 @@ const Login = () => {
       password: '',
     },
   });
+
+  const checkUserRoomsAndNavigate = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/api/auth/rooms', {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const rooms = data.rooms;
+        
+        if (rooms && rooms.length > 0) {
+          // Navigate to the most recent room
+          navigate(`/room/${rooms[0].id}`);
+        } else {
+          // No rooms found, navigate to home page
+          navigate('/');
+        }
+      } else {
+        // If we can't fetch rooms, just go to home page
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Failed to fetch user rooms:', error);
+      // On error, just go to home page
+      navigate('/');
+    }
+  };
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
@@ -52,8 +82,11 @@ const Login = () => {
         throw new Error(errorData.message || 'Login failed');
       }
 
-      // On successful login, redirect to the chat/home page
-      navigate('/');
+      // Refetch user data to update the authentication state
+      await refetchUser();
+      
+      // Check if user has rooms and navigate accordingly
+      await checkUserRoomsAndNavigate();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
     } finally {
@@ -61,15 +94,15 @@ const Login = () => {
     }
   };
 
-  // Handle OAuth providers (next-auth style)
-  const handleOAuthSignIn = (provider: 'github' | 'google') => {
-    try {
-      // TODO: Implement OAuth sign in with next-auth
-      console.log(`${provider} login clicked`);
-    } catch (error) {
-      setError('Failed to connect to authentication provider');
-    }
-  };
+  // // Handle OAuth providers (next-auth style)
+  // const handleOAuthSignIn = (provider: 'github' | 'google') => {
+  //   try {
+  //     // TODO: Implement OAuth sign in with next-auth
+  //     console.log(`${provider} login clicked`);
+  //   } catch (error) {
+  //     setError('Failed to connect to authentication provider');
+  //   }
+  // };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

@@ -11,9 +11,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MessageCircle, User, LogOut, Settings } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 export const Navbar = () => {
-  const user = null; 
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = () => {
@@ -24,8 +25,9 @@ export const Navbar = () => {
     navigate('/signup');
   };
 
-  const handleLogout = () => {
-    console.log('Logout clicked');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
   };
 
   return (
@@ -37,7 +39,7 @@ export const Navbar = () => {
             <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
               <MessageCircle className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">ChatApp</span>
+            <span className="text-xl font-bold text-foreground">Chatr.io</span>
           </Link>
 
           {/* User Menu or Auth Buttons */}
@@ -47,9 +49,9 @@ export const Navbar = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.avatar} alt={user.username} />
+                      <AvatarImage src="" alt={user.email} />
                       <AvatarFallback className="bg-secondary text-secondary-foreground">
-                        {user.username.slice(0, 2).toUpperCase()}
+                        {user.email.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -57,9 +59,9 @@ export const Navbar = () => {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user.username}</p>
+                      <p className="text-sm font-medium leading-none">{user.email}</p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
+                        Logged in
                       </p>
                     </div>
                   </DropdownMenuLabel>
