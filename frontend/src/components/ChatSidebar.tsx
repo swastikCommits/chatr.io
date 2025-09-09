@@ -9,11 +9,11 @@ interface User {
 }
 
 const mockUsers: User[] = [
-  { id: '1', name: 'Alex Johnson', status: 'online' },
-  { id: '2', name: 'Sarah Chen', status: 'online' },
-  { id: '3', name: 'Mike Rodriguez', status: 'offline' },
-  { id: '4', name: 'Emma Davis', status: 'online' },
-  { id: '5', name: 'James Wilson', status: 'offline' },
+  // { id: '1', name: 'Alex Johnson', status: 'online' },
+  // { id: '2', name: 'Sarah Chen', status: 'online' },
+  // { id: '3', name: 'Mike Rodriguez', status: 'offline' },
+  // { id: '4', name: 'Emma Davis', status: 'online' },
+  // { id: '5', name: 'James Wilson', status: 'offline' },
 ];
 
 export const ChatSidebar = () => {
