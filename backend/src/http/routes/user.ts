@@ -96,6 +96,103 @@ userRouter.get('/rooms', authenticateToken, async (req: AuthenticatedRequest, re
   }
 });
 
+// Fast endpoint for recent messages only (for instant loading)
+userRouter.get('/rooms/:roomId/messages/recent', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user!.userId;
+
+    // Ultra-fast query: Get only last 10 messages without room membership check initially
+    const messages = await prisma.message.findMany({
+      where: {
+        roomId: roomId,
+        room: {
+          users: {
+            some: {
+              id: userId
+            }
+          }
+        }
+      },
+      select: {
+        id: true,
+        message: true,
+        createdAt: true,
+        author: {
+          select: {
+            id: true,
+            email: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 10
+    });
+
+    res.json({ messages: messages.reverse() });
+  } catch (error) {
+    console.error('Get recent messages error:', error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+userRouter.get('/rooms/:roomId/messages', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user!.userId;
+    const limit = parseInt(req.query.limit as string) || 20; // Reduced default from 50 to 20
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    // Optimized: Single query to check room membership and get messages
+    const room = await prisma.room.findFirst({
+      where: {
+        id: roomId,
+        users: {
+          some: {
+            id: userId
+          }
+        }
+      },
+      select: {
+        id: true,
+        messages: {
+          select: {
+            id: true,
+            message: true,
+            createdAt: true,
+            author: {
+              select: {
+                id: true,
+                email: true,
+                username: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc' // Get newest first, then reverse in frontend
+          },
+          take: limit,
+          skip: offset
+        }
+      }
+    });
+
+    if (!room) {
+      return res.status(403).json({ message: "Access denied. You are not a member of this room." });
+    }
+
+    // Reverse to get chronological order (oldest first)
+    const messages = room.messages.reverse();
+
+    res.json({ messages, hasMore: room.messages.length === limit });
+  } catch (error) {
+    console.error('Get room messages error:', error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 userRouter.get('/ws-token', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   try {
     const token = req.cookies.token;
